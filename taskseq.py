@@ -1,18 +1,14 @@
-#!/usr/bin/env python3
-"""
-Use like this:
-    taskseq 1,2,3>4,5>6
-"""
-
-import taskw
 import argparse
+from typing import List, Tuple
+import taskw
 
-if __name__ == '__main__':
 
-    DELIMETER_PARALLELL = ','
-    DELIMETER_SEQUENTIAL = '--'
+DELIMETER_PARALLELL = ','
+DELIMETER_SEQUENTIAL = '--'
 
-    # Setup
+
+def get_args():
+    """ Get commandline arguments """
     argparser = argparse.ArgumentParser()
     argparser.add_argument(
         'sequence',
@@ -25,19 +21,34 @@ if __name__ == '__main__':
         '--config',
         help='Used to specify an alternate path for the taskwarrior config file'
     )
-    args = argparser.parse_args()
-    tw = taskw.TaskWarriorShellout(**(dict(config_filename=args.config) if args.config else {}))
+    return argparser.parse_args()
+
+
+def run():
+    args = get_args()
+    tw = taskw.TaskWarriorShellout(
+        **(dict(config_filename=args.config) if args.config else {})
+    )
 
     # Parsing
-    seqstr: str = args.sequence
-    ast = [s.split(DELIMETER_PARALLELL) for s in seqstr.split(DELIMETER_SEQUENTIAL)]
+    sequence: List[List[str]] = [
+        s.split(DELIMETER_PARALLELL)
+        for s in args.sequence.split(DELIMETER_SEQUENTIAL)
+    ]
 
-    # Executing
-    pairs = zip(ast[:-1], ast[1:]) # [ (group 1, group 2), (group 2, group 3), and so on... ]
-    for dependencies, dependers in pairs:
-        depends_uuids: str = ','.join([tw.get_task(id=task)[1]['uuid'] for task in dependencies])
+    # [ (group 1, group 2), (group 2, group 3), and so on... ]
+    neighbours: List[Tuple[List[str]]] = zip(sequence[:-1], sequence[1:])
+    for dependencies, dependers in neighbours:
+        depends_uuids: str = ','.join([
+            tw.get_task(id=task)[1]['uuid']
+            for task in dependencies
+        ])
         for depender_id in dependers:
             _, depender = tw.get_task(id=depender_id)
             depender['depends'] = depends_uuids
             tw.task_update(depender)
             print(f'updated {depender_id}')
+
+
+if __name__ == '__main__':
+    run()
