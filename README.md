@@ -4,7 +4,7 @@ Make taskwarrior tasks sequential easily
 
 ## Installation
 
-	pip3 install taskseq
+	pip3 --user install taskseq
 
 ## Usage
 
